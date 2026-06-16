@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl-suspension"
+version = "0.1.0"
+description = "Single-agent RL training scaffold for active suspension control."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "gymnasium>=0.29",
+    "stable-baselines3>=2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rl_suspension*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
