@@ -1,0 +1,33 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- Virtual environments ---
+.venv-suspension/
+.venv/
+venv/
+env/
+
+# --- Secrets / credentials ---
+api.txt
+*.env
+.env
+
+# --- Unrelated projects in this workspace (not part of this repo) ---
+/CrossNet/
+/USEF-TSE/
+/api_request/
+/test_crossnet_model.py
+
+# --- Large regenerable artifacts ---
+runs/**/teacher_data.npz
+runs/**/*.npz
+runs/*.log
+*.log
+
+# --- OS ---
+.DS_Store

@@ -1,0 +1,7 @@
+numpy>=1.26
+scipy>=1.11
+pyyaml>=6.0
+matplotlib>=3.7
+gymnasium>=0.29
+torch>=2.2
+stable-baselines3>=2.3
