@@ -1,0 +1,22 @@
+services:
+  production-pipeline:
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile
+      args:
+        BASE_IMAGE: ${PRIVATE_PYTHON_IMAGE:-python:3.10-slim}
+    read_only: true
+    user: "suspension:suspension"
+    volumes:
+      - ../../config:/opt/rl-suspension/config:ro
+      - ../../runs:/opt/rl-suspension/runs:rw
+    environment:
+      MPC_PLUGIN: ${MPC_PLUGIN:?set MPC_PLUGIN}
+      SIMULATOR_PLUGIN: ${SIMULATOR_PLUGIN:?set SIMULATOR_PLUGIN}
+      SAFE_CONTROLLER_PLUGIN: ${SAFE_CONTROLLER_PLUGIN:?set SAFE_CONTROLLER_PLUGIN}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=1g,mode=1777

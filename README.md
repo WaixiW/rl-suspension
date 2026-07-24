@@ -273,3 +273,111 @@ Once these pass, run:
 python -m rl_suspension.evaluation.evaluate --policy passive --episodes 1 --curriculum-stage 1
 python -m rl_suspension.training.train_sac --timesteps-scale 0.001
 ```
+
+## Behavior Cloning and DAgger Sandbox
+
+The imitation package is teacher-agnostic.
+The deployable observation is now 484D: the original 50 state/diagnostic
+features followed by 217 left-road and 217 right-road samples from the rear
+axle through 8 m ahead of the front axle. Legacy datasets and checkpoints made
+with the 50D observation must be regenerated.
+
+Tune and qualify the OSQP-backed full-car preview MPC:
+
+```bash
+python -m rl_suspension.controllers.mpc.tune_mpc \
+  --output runs/mpc/tuning \
+  --episodes 3 \
+  --curriculum-stage 5 \
+  --horizon 30
+
+python -m rl_suspension.controllers.mpc.benchmark_mpc \
+  --config runs/mpc/tuning/best_mpc_config.json \
+  --output runs/mpc/held_out.json \
+  --episodes 3
+```
+
+MPC is the default imitation teacher. Collection refuses to use it unless its
+held-out return and safety gate beat passive control; `--allow-unqualified`
+exists only for plumbing tests.
+
+Collect phase-balanced expert episodes:
+
+```bash
+python -m rl_suspension.imitation.collect \
+  --episodes 500 \
+  --teacher mpc \
+  --mpc-config runs/mpc/tuning/best_mpc_config.json \
+  --output data/mpc_expert
+```
+
+Train the actual SAC actor with behavior cloning:
+
+```bash
+python -m rl_suspension.imitation.train_bc \
+  --dataset data/mpc_expert \
+  --loss huber_smooth \
+  --output runs/imitation/bc
+```
+
+Run five DAgger aggregation rounds:
+
+```bash
+python -m rl_suspension.imitation.train_dagger \
+  --dataset data/mpc_expert \
+  --initial-model runs/imitation/bc/bc_sac_actor.zip \
+  --rounds 5 \
+  --beta 1,.75,.5,.25,0 \
+  --teacher mpc \
+  --mpc-config runs/mpc/tuning/best_mpc_config.json \
+  --output runs/imitation/dagger
+```
+
+Run the complete MSE/Huber/DAgger/SafeDAgger comparison:
+
+```bash
+python -m rl_suspension.imitation.run_benchmark \
+  --dataset data/mpc_expert \
+  --output runs/imitation/benchmark
+```
+
+The dataset stores both `actions` (expert labels) and `behavior_actions`
+(commands actually executed during DAgger). This distinction is required if
+the transitions are later reused for SAC critic training. MPC shards also
+store solver status, objective, iterations, latency, constraint margin, and
+fallback metadata for every label.
+
+## Private-Server Production Pipeline
+
+The `rl_suspension.production` package is a separate integration boundary for
+the business MPC, simulator, and RL framework. Unlike the four-force sandbox,
+the production contract clones the MPC's twelve physical actuator commands
+directly. Private implementations are loaded as `package.module:factory`
+plugins, so proprietary solver and simulator code does not need to be copied
+into this repository.
+
+Before data collection, certify the adapter contracts:
+
+```bash
+rl-suspension-production certify \
+  --mpc-plugin private_suspension.mpc:create_adapter \
+  --simulator-plugin private_suspension.simulator:create_adapter \
+  --scenario-json config/contract_scenario.json \
+  --output runs/production/contract-certification.json
+```
+
+For an installation smoke test without private dependencies:
+
+```bash
+python -m rl_suspension.production.cli certify \
+  --reference \
+  --output runs/production/reference-certification.json
+```
+
+Start from `config/production.example.json` and
+`config/action_schema.example.json`. The physical action order, bounds, safe
+values, and slew rates must be reviewed against the actual vehicle interface
+before any private-server collection or ECU export.
+
+Operational integration, security, validation, HIL, model-card, and rollback
+documents are under `docs/production/`.

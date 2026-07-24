@@ -19,3 +19,7 @@ def test_allocator_returns_12d_action_and_limited_force():
     assert result.actuator_state.forces.shape == (4,)
     assert np.all(np.abs(result.feasible_forces) <= 5000.0)
     assert result.saturated[:2].all()
+    assert np.all(
+        np.sign(result.actuator_state.forces)
+        == np.sign(result.feasible_forces)
+    )

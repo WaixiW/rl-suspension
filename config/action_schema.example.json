@@ -1,0 +1,21 @@
+{
+  "version": "action.direct12.v1",
+  "names": [
+    "fl_current_compression_a",
+    "fl_current_rebound_a",
+    "fl_pump_rpm",
+    "fr_current_compression_a",
+    "fr_current_rebound_a",
+    "fr_pump_rpm",
+    "rl_current_compression_a",
+    "rl_current_rebound_a",
+    "rl_pump_rpm",
+    "rr_current_compression_a",
+    "rr_current_rebound_a",
+    "rr_pump_rpm"
+  ],
+  "minimum": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "maximum": [2, 2, 5000, 2, 2, 5000, 2, 2, 5000, 2, 2, 5000],
+  "slew_per_second": [10, 10, 12000, 10, 10, 12000, 10, 10, 12000, 10, 10, 12000],
+  "safe_action": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+}

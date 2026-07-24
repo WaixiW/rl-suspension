@@ -9,6 +9,7 @@ __pycache__/
 htmlcov/
 
 .venv/
+.bootstrap/
 venv/
 env/
 
@@ -16,8 +17,8 @@ build/
 dist/
 *.egg-info/
 
+/data/
 runs/
-models/
 logs/
 
 .env

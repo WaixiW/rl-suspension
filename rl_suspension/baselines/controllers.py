@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from rl_suspension.envs.observation import OBSERVATION_SPEC
 from rl_suspension.models.types import FloatArray
 
 
@@ -32,10 +33,11 @@ class SkyhookGroundhookPolicy(BaselinePolicy):
     groundhook_gain: float = 0.03
 
     def predict(self, observation: FloatArray, deterministic: bool = True) -> tuple[FloatArray, None]:
-        obs = np.asarray(observation, dtype=np.float64)
-        body_velocity = obs[7]
-        wheel_velocities = obs[10:14]
-        suspension_velocities = obs[18:22]
+        obs = OBSERVATION_SPEC.validate(np.asarray(observation, dtype=np.float64))
+        state = obs[OBSERVATION_SPEC.state]
+        body_velocity = state[7]
+        wheel_velocities = state[10:14]
+        suspension_velocities = obs[OBSERVATION_SPEC.suspension_velocities]
         force = -self.skyhook_gain * body_velocity - self.groundhook_gain * wheel_velocities
         force += -0.02 * suspension_velocities
         return np.clip(force, -1.0, 1.0).astype(np.float32), None
@@ -49,10 +51,10 @@ class PreviewRulePolicy(BaselinePolicy):
     damping_gain: float = 0.04
 
     def predict(self, observation: FloatArray, deterministic: bool = True) -> tuple[FloatArray, None]:
-        obs = np.asarray(observation, dtype=np.float64)
-        suspension_velocities = obs[18:22]
-        speed = max(float(obs[42]), 0.1)
-        peak_distance, peak_height, _, asymmetry, *_ = obs[43:50]
+        obs = OBSERVATION_SPEC.validate(np.asarray(observation, dtype=np.float64))
+        suspension_velocities = obs[OBSERVATION_SPEC.suspension_velocities]
+        speed = max(float(obs[OBSERVATION_SPEC.speed][0]), 0.1)
+        peak_distance, peak_height, _, asymmetry, *_ = obs[OBSERVATION_SPEC.ads_features]
         time_to_bump = peak_distance / speed
         timing = np.exp(-((time_to_bump - 0.12) ** 2) / 0.02)
         base = -self.preview_gain * np.sign(peak_height) * abs(peak_height) * timing

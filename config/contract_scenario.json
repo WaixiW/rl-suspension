@@ -1,0 +1,14 @@
+{
+  "scenario_id": "contract-single-bump-v1",
+  "seed": 123,
+  "split": "validation",
+  "bump_family": "single_bump",
+  "parameters": {
+    "speed_mps": 12.0,
+    "bump_start_m": 2.0,
+    "bump_height_m": 0.05,
+    "bump_width_m": 0.5,
+    "episode_steps": 100
+  },
+  "version": "scenario.v1"
+}

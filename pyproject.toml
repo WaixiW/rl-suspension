@@ -11,12 +11,22 @@ dependencies = [
     "numpy>=1.24",
     "gymnasium>=0.29",
     "stable-baselines3>=2.3",
+    "cvxpy>=1.4",
+    "osqp>=0.6",
+    "scipy>=1.10",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
 ]
+export = [
+    "onnx",
+    "onnxruntime",
+]
+
+[project.scripts]
+rl-suspension-production = "rl_suspension.production.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -24,3 +34,6 @@ include = ["rl_suspension*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: short end-to-end imitation-learning smoke tests",
+]

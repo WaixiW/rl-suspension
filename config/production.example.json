@@ -1,0 +1,36 @@
+{
+  "output_root": "runs/production",
+  "mpc_plugin": "private_suspension.mpc:create_adapter",
+  "simulator_plugin": "private_suspension.simulator:create_adapter",
+  "safe_controller_plugin": "private_suspension.safe_controller:create_adapter",
+  "policy_plugin": "",
+  "collection": {
+    "train_episodes": 500,
+    "validation_episodes": 100,
+    "test_episodes": 100,
+    "base_seed": 0,
+    "workers": 1
+  },
+  "training": {
+    "epochs": 50,
+    "batch_size": 256,
+    "learning_rate": 0.0003,
+    "action_delta_weight": 0.1,
+    "bound_weight": 0.01,
+    "dagger_betas": [1.0, 0.75, 0.5, 0.25, 0.0],
+    "dagger_episodes_per_round": 20,
+    "seed": 0
+  },
+  "gates": {
+    "minimum_teacher_return_gain": 0.01,
+    "minimum_teacher_comfort_gain": 0.01,
+    "maximum_solver_invalid_rate": 0.001,
+    "minimum_student_mpc_retention": 0.8,
+    "maximum_student_safety_regression": 0.0,
+    "maximum_p99_inference_ms": 2.0
+  },
+  "metadata": {
+    "owner": "replace-me",
+    "change_ticket": "replace-me"
+  }
+}

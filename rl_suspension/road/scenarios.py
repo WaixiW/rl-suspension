@@ -58,11 +58,33 @@ class RoadProfile:
             cfg.preview_resolution,
             dtype=np.float64,
         )
+        return self._sample_offsets(vehicle_x, offsets)
+
+    def extended_preview(self, vehicle_x: float) -> tuple[FloatArray, FloatArray]:
+        """Profile from the rear axle through the ADS look-ahead range.
+
+        The section behind the front axle represents road-map memory. In the
+        real vehicle it is populated from previous ADS scans; the simulator can
+        sample it directly.
+        """
+
+        cfg = self.config
+        offsets = np.arange(
+            -cfg.wheelbase,
+            cfg.preview_distance + 0.5 * cfg.preview_resolution,
+            cfg.preview_resolution,
+            dtype=np.float64,
+        )
+        return self._sample_offsets(vehicle_x, offsets), offsets
+
+    def _sample_offsets(self, vehicle_x: float, offsets: FloatArray) -> FloatArray:
+        cfg = self.config
         xs = vehicle_x + offsets
         left = np.array([self.height(x, side="left") for x in xs], dtype=np.float64)
         right = np.array([self.height(x, side="right") for x in xs], dtype=np.float64)
         if cfg.road_noise_std > 0.0:
-            confidence = np.exp(-offsets / max(cfg.preview_distance, 1e-6))
+            forward_distance = np.maximum(offsets, 0.0)
+            confidence = np.exp(-forward_distance / max(cfg.preview_distance, 1e-6))
             noise_std = cfg.road_noise_std * (1.0 - confidence)
             left = left + self.rng.normal(0.0, noise_std)
             right = right + self.rng.normal(0.0, noise_std)
@@ -72,17 +94,46 @@ class RoadProfile:
         cfg = self.config
         preview = self.preview(vehicle_x)
         offsets = np.arange(preview.shape[1], dtype=np.float64) * cfg.preview_resolution
-        mean_profile = preview.mean(axis=0)
+        return self.features_from_preview(preview, offsets)
+
+    def features_from_preview(
+        self,
+        preview: FloatArray,
+        offsets: FloatArray,
+    ) -> FloatArray:
+        """Compress the forward portion of an already sampled road profile."""
+
+        cfg = self.config
+        preview_array = np.asarray(preview, dtype=np.float64)
+        offset_array = np.asarray(offsets, dtype=np.float64)
+        if preview_array.shape != (2, offset_array.size):
+            raise ValueError("preview must have shape (2, len(offsets))")
+        forward = offset_array >= -1e-9
+        preview_array = preview_array[:, forward]
+        offset_array = offset_array[forward]
+        mean_profile = preview_array.mean(axis=0)
+        detection_floor = max(1e-6, 3.0 * cfg.road_noise_std)
+        if float(np.max(np.abs(mean_profile))) <= detection_floor:
+            return np.array(
+                [cfg.preview_distance, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                dtype=np.float64,
+            )
         peak_idx = int(np.argmax(np.abs(mean_profile)))
         peak_height = float(mean_profile[peak_idx])
-        peak_distance = float(offsets[peak_idx])
+        peak_distance = float(offset_array[peak_idx])
         threshold = 0.2 * max(abs(peak_height), 1e-9)
         active = np.where(np.abs(mean_profile) >= threshold)[0]
         width = float((active[-1] - active[0] + 1) * cfg.preview_resolution) if active.size else 0.0
-        asymmetry = float(preview[0, peak_idx] - preview[1, peak_idx])
-        near_count = min(10, preview.shape[1])
-        left_slope = float((preview[0, near_count - 1] - preview[0, 0]) / (near_count * cfg.preview_resolution))
-        right_slope = float((preview[1, near_count - 1] - preview[1, 0]) / (near_count * cfg.preview_resolution))
+        asymmetry = float(preview_array[0, peak_idx] - preview_array[1, peak_idx])
+        near_count = min(10, preview_array.shape[1])
+        left_slope = float(
+            (preview_array[0, near_count - 1] - preview_array[0, 0])
+            / (near_count * cfg.preview_resolution)
+        )
+        right_slope = float(
+            (preview_array[1, near_count - 1] - preview_array[1, 0])
+            / (near_count * cfg.preview_resolution)
+        )
         confidence = float(np.exp(-peak_distance / max(cfg.preview_distance, 1e-6)))
         return np.array(
             [peak_distance, peak_height, width, asymmetry, left_slope, right_slope, confidence],

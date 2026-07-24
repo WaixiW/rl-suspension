@@ -9,6 +9,7 @@ import numpy as np
 from gymnasium import spaces
 
 from rl_suspension.actuators import ActuatorAllocator, ActuatorLimits
+from rl_suspension.envs.observation import OBSERVATION_SPEC
 from rl_suspension.models import ActuatorState, SevenDofSuspensionModel, SuspensionState, VehicleParams
 from rl_suspension.models.types import FloatArray, SuspensionOutput
 from rl_suspension.road import BumpScenario, RoadProfile, ScenarioConfig
@@ -32,6 +33,8 @@ class EnvConfig:
     max_force: float = 5000.0
     curriculum_stage: int = 1
     randomize_scenario: bool = True
+    observation_noise_std: float = 0.0
+    terminate_on_violation: bool = True
     reward_weights: RewardWeights = field(default_factory=RewardWeights)
     vehicle_params: VehicleParams = field(default_factory=VehicleParams)
     scenario: ScenarioConfig = field(default_factory=ScenarioConfig)
@@ -68,8 +71,8 @@ class ActiveSuspensionEnv(gym.Env):
 
         # 14 plant states + 4 suspension deflections + 4 suspension velocities
         # + 4 previous forces + 8 currents + 4 pump speeds + 4 actual forces
-        # + speed + 7 compressed ADS features.
-        self.observation_dim = 50
+        # + speed + 7 compressed ADS features + full left/right road profile.
+        self.observation_dim = OBSERVATION_SPEC.dimension
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
@@ -154,6 +157,22 @@ class ActiveSuspensionEnv(gym.Env):
             suspension_deflections = self.last_output.suspension_deflections
             suspension_velocities = self.last_output.suspension_velocities
 
+        road_profile, road_offsets = self.road.extended_preview(self.vehicle_x)
+        target_offsets = OBSERVATION_SPEC.road_offsets()
+        if road_profile.shape[1] != OBSERVATION_SPEC.preview_points or not np.allclose(
+            road_offsets,
+            target_offsets,
+        ):
+            road_profile = np.stack(
+                [
+                    np.interp(target_offsets, road_offsets, side_profile)
+                    for side_profile in road_profile
+                ],
+                axis=0,
+            )
+            road_offsets = target_offsets
+        ads_features = self.road.features_from_preview(road_profile, road_offsets)
+
         obs = np.concatenate(
             [
                 self.state.as_vector(),
@@ -164,11 +183,21 @@ class ActiveSuspensionEnv(gym.Env):
                 self.actuator_state.pump_speeds / max(self.config.actuator_limits.pump_speed_max, 1.0),
                 self.actuator_state.forces / max(self.config.max_force, 1.0),
                 np.array([self.road.config.speed], dtype=np.float64),
-                self.road.features(self.vehicle_x),
+                ads_features,
+                road_profile[0],
+                road_profile[1],
             ]
         ).astype(np.float32)
+        if self.config.observation_noise_std > 0.0:
+            noisy_end = OBSERVATION_SPEC.actual_forces.stop
+            obs[:noisy_end] += self.np_random.normal(
+                0.0,
+                self.config.observation_noise_std,
+                size=noisy_end,
+            ).astype(np.float32)
         if obs.shape != (self.observation_dim,):
             raise RuntimeError(f"Observation shape {obs.shape} does not match {self.observation_dim}")
+        OBSERVATION_SPEC.validate(obs)
         return obs
 
     def _reward(self, output: SuspensionOutput, forces: FloatArray, force_rate: FloatArray) -> float:
@@ -190,6 +219,8 @@ class ActiveSuspensionEnv(gym.Env):
         return float(value)
 
     def _is_unsafe(self, output: SuspensionOutput) -> bool:
+        if not self.config.terminate_on_violation:
+            return False
         return any(value > 0.05 for value in output.constraint_violations.values())
 
     def _info(self, output: SuspensionOutput, forces: FloatArray, force_rate: FloatArray) -> dict:

@@ -1,0 +1,33 @@
+# Python 3.10 Linux production constraints, generated from the validated server image.
+# Regenerate and certify this file whenever the base image or dependency set changes.
+cffi==2.1.0
+clarabel==0.11.1
+cloudpickle==3.1.2
+coloredlogs==15.0.1
+cvxpy==1.7.5
+exceptiongroup==1.3.1
+Farama-Notifications==0.0.6
+filelock==3.29.0
+flatbuffers==25.12.19
+fsspec==2026.4.0
+gymnasium==1.3.0
+humanfriendly==10.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+ml_dtypes==0.5.4
+mpmath==1.3.0
+networkx==3.4.2
+numpy==2.2.6
+onnx==1.19.1
+onnxruntime==1.19.2
+osqp==1.1.3
+packaging==26.2
+protobuf==6.33.6
+pycparser==3.0
+scipy==1.15.3
+scs==3.2.11
+stable_baselines3==2.9.0
+sympy==1.14.0
+tomli==2.4.1
+torch==2.13.0
+typing_extensions==4.15.0

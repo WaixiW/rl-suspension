@@ -87,7 +87,13 @@ class ActuatorAllocator:
         currents = np.clip(currents, self.limits.current_min, self.limits.current_max)
         pumps = np.clip(pumps, self.limits.pump_speed_min, self.limits.pump_speed_max)
 
-        realized_target = self._forward_force(currents, pumps, velocities, max_force)
+        realized_target = self._forward_force(
+            currents,
+            pumps,
+            velocities,
+            max_force,
+            feasible,
+        )
         alpha = float(np.clip(dt / max(self.limits.force_time_constant, dt), 0.0, 1.0))
         forces = previous_state.forces + alpha * (realized_target - previous_state.forces)
 
@@ -149,6 +155,7 @@ class ActuatorAllocator:
         pump_speeds: FloatArray,
         suspension_velocities: FloatArray,
         max_force: FloatArray,
+        feasible_forces: FloatArray,
     ) -> FloatArray:
         forces = np.zeros(4, dtype=np.float64)
         pump_gain = pump_speeds / max(self.limits.pump_speed_max, 1.0)
@@ -158,9 +165,12 @@ class ActuatorAllocator:
             signed_current = c0 - c1
             valve_gain = signed_current / max(self.limits.current_max, 1e-6)
             velocity_gain = np.tanh(6.0 * suspension_velocities[corner])
-            direction = np.sign(valve_gain + 0.2 * velocity_gain)
+            # The high-level interface is a signed corner-force request. Valve
+            # channel selection may depend on suspension direction, but that
+            # must not silently reverse the requested force.
+            direction = np.sign(feasible_forces[corner])
             if direction == 0.0:
-                direction = np.sign(velocity_gain)
+                direction = np.sign(valve_gain + 0.2 * velocity_gain)
             forces[corner] = direction * max_force[corner] * np.clip(pump_gain[corner], 0.0, 1.0)
         return forces
 
