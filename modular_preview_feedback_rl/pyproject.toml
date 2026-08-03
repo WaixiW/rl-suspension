@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modular-preview-feedback-rl"
+version = "0.1.0"
+description = "Reference implementation of modular preview-feedback active-suspension RL"
+requires-python = ">=3.9"
+dependencies = ["numpy", "torch"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
